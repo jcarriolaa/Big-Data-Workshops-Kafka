@@ -41,8 +41,8 @@ Responder, con evidencia generada en tu propio clúster:
 |---|---|---|---|
 | **Paso 0** | Prerrequisito | 30 min | Docker, Python y la imagen de Kafka |
 | **[Parte 1 — Guiada](parte-1-guiada.md)** | En clase | 80 min | Levantar Kafka, crear un topic con particiones, producir y consumir mensajes con Python. Todo el código se proporciona |
-| **[Parte 2 — Tarea](parte-2-tarea.md)** | Tarea | 10–12 h | Interfaz web, clúster de tres brokers, escenarios de falla y volcado a disco con Kafka Connect. Tres pasos son de investigación |
-| **[Entrega](ENTREGA.md)** | Tarea | 2–3 h | Bitácora, video y Pull Request |
+| **[Parte 2 — Tarea](parte-2-tarea.md)** | Tarea | 6–8 h | Interfaz web, clúster de tres brokers, escenarios de falla y volcado a disco con Kafka Connect. Tres pasos son de investigación |
+| **[Entrega](ENTREGA.md)** | Tarea | 3–4 h | Bitácora, video y Pull Request |
 
 La Parte 1 no se califica y es prerrequisito de la Parte 2.
 
