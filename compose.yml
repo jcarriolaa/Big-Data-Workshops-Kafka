@@ -1,0 +1,146 @@
+# =============================================================================
+#  Taller Apache Kafka 4.3 (KRaft, sin ZooKeeper) - Big Data, UFM 2026 S2
+#
+#  Este archivo esta INCOMPLETO a proposito: trae el controller y un broker.
+#  En la Parte 2 le agregas una interfaz web, los otros dos brokers y Kafka Connect.
+#
+#  Los servicios con "profiles" no arrancan solos; se encienden por su nombre:
+#     docker compose up -d                  -> lo que no lleva "profiles"
+#     docker compose --profile X up -d      -> ademas, lo que lleve profiles: ["X"]
+#
+#  Los datos viven en volumenes con nombre y sobreviven a "docker compose down".
+# =============================================================================
+name: taller-kafka
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # CONTROLLER: guarda la metadata del cluster (que topics hay, cuantas
+  # particiones, quien es lider de cada una). NO guarda ni un solo mensaje.
+  # Es el equivalente al NameNode del taller anterior.
+  # No se publica ningun puerto: ningun cliente le habla desde fuera de Docker.
+  # ---------------------------------------------------------------------------
+  controller:
+    image: apache/kafka:4.3.1
+    container_name: controller
+    hostname: controller
+    environment:
+      # Identificador del cluster. Tiene que ser IDENTICO en los cuatro
+      # servicios de Kafka. La imagen NO lo genera sola: sin el, no arranca.
+      CLUSTER_ID: "WlL87-PcRR2S3WoPjzivfg"
+
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: controller
+
+      # Quien vota para elegir al lider de la metadata. Formato: <id>@<host>:<puerto>.
+      # Aqui solo vota el controller, y por eso agregar brokers despues no
+      # cambia nada. En produccion irian tres controllers, no uno.
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@controller:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: "CONTROLLER://0.0.0.0:9093"
+      # Un controller NUNCA lleva KAFKA_ADVERTISED_LISTENERS: la imagen aborta.
+
+      # Los nombres de listener (CONTROLLER, INTERNAL, EXTERNAL) son etiquetas
+      # que inventamos nosotros. Este mapa es el que les da significado.
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+      # Los topics internos de Kafka con una sola copia: imprescindible para
+      # poder arrancar el taller con UN solo broker.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+
+      KAFKA_HEAP_OPTS: "-Xms128m -Xmx256m"
+    volumes:
+      - controller-data:/var/lib/kafka/data
+
+  # ---------------------------------------------------------------------------
+  # KAFKA1 -> desde tu maquina es localhost:9092
+  #
+  # Cada broker escucha por dos puertas:
+  #   INTERNAL (19092) se anuncia como "kafka1:19092". La usan los otros
+  #                    brokers, la UI y Connect, que viven dentro de Docker.
+  #   EXTERNAL  (9092) se anuncia como "localhost:9092". La usa tu Python.
+  #
+  # REQUISITO: el puerto de EXTERNAL en advertised tiene que ser el mismo
+  # que se ve desde tu maquina (el numero de la izquierda en "ports"). Por eso
+  # usamos el mismo numero de los dos lados.
+  # ---------------------------------------------------------------------------
+  kafka1:
+    image: apache/kafka:4.3.1
+    container_name: kafka1
+    hostname: kafka1
+    depends_on:
+      - controller
+    ports:
+      - "9092:9092"
+    environment:
+      CLUSTER_ID: "WlL87-PcRR2S3WoPjzivfg"
+
+      KAFKA_NODE_ID: 11
+      KAFKA_PROCESS_ROLES: broker          # broker puro: guarda datos, no vota
+
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@controller:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+
+      # Donde ESCUCHA dentro del contenedor (0.0.0.0 = en todas sus interfaces).
+      KAFKA_LISTENERS: "INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092"
+      # Lo que le RESPONDE a quien le pregunta "donde te encuentro".
+      # El cliente se reconecta a esta direccion, no a la que uso al inicio.
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka1:19092,EXTERNAL://localhost:9092"
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+
+      # Sin esto, Kafka espera 3 segundos antes de repartir las particiones
+      # entre los consumidores. Lo ponemos en 0 para ver el reparto al instante.
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Los topics se crean a mano: asi decides tu cuantas particiones y copias.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+    volumes:
+      - kafka1-data:/var/lib/kafka/data
+
+  # ---------------------------------------------------------------------------
+  # AQUI VAN KAFKA2 Y KAFKA3.
+  #
+  # En el Paso 6 los escribes tu, copiando el bloque de kafka1 y cambiando lo
+  # que tenga que ser distinto. La Parte 2 fija los ids y los puertos; tu
+  # escribes el bloque.
+  #
+  # Los dos llevan:   profiles: ["cluster"]
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
+  # EN TOTAL FALTAN TRES COSAS, Y LAS INVESTIGAS TU (todas van aqui, como
+  # servicios al mismo nivel que kafka1):
+  #
+  #   Paso 5   una interfaz web para ver el cluster
+  #   Paso 6   kafka2 y kafka3
+  #   Paso 11  Kafka Connect, para volcar un topic a un archivo
+  #
+  # La Parte 2 indica el estado esperado de cada una y por donde empezar a
+  # buscar. La configuracion para lograrlo la investigas tu.
+  # ---------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Volumenes con nombre: aqui viven los datos de cada nodo.
+#   docker compose down      -> los conserva
+#   docker compose down -v   -> LOS BORRA (solo para empezar de cero)
+# -----------------------------------------------------------------------------
+volumes:
+  controller-data:
+  kafka1-data:
+  # Cada broker que agregues necesita su propio volumen aqui abajo.

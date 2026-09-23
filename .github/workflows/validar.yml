@@ -1,0 +1,65 @@
+# Revisa cada entrega en cuanto se abre o actualiza su Pull Request.
+#
+# Corre con permisos de SOLO LECTURA, porque los PR vienen de forks. Por eso no
+# comenta: guarda el resultado y de eso se encarga comentar.yml.
+name: Validar entrega
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "Número del PR a revisar a mano"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validar-${{ github.event.pull_request.number || github.event.inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.pr && format('refs/pull/{0}/merge', github.event.inputs.pr) || '' }}
+
+      - name: Usar siempre el validador de main
+        # El estudiante trabaja en su fork: el script con el que se le revisa
+        # tiene que ser el del curso, no el que traiga su copia.
+        run: |
+          git fetch origin main --depth=1
+          git checkout origin/main -- scripts/validar_entrega.py
+
+      - name: Revisar la entrega
+        id: revisar
+        env:
+          BASE_REF: origin/main
+          RAMA: ${{ github.event.pull_request.head.ref }}
+          SALIDA_MD: resultado.md
+        run: |
+          set +e
+          python3 scripts/validar_entrega.py
+          echo "codigo=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Guardar el resultado para el comentario
+        if: always()
+        run: |
+          mkdir -p salida-validacion
+          cp resultado.md salida-validacion/ 2>/dev/null || printf "## Validación\n\nNo encontré tu carpeta de entrega. El PR tiene que agregar archivos dentro de \`entregas/G#/<carné>-<nombre>-<apellido>/\`.\n" > salida-validacion/resultado.md
+          echo "${{ github.event.pull_request.number || github.event.inputs.pr }}" > salida-validacion/numero-pr.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultado-validacion
+          path: salida-validacion/
+
+      - name: Fallar si hubo algún ❌
+        if: steps.revisar.outputs.codigo != '0'
+        run: exit 1

@@ -1,0 +1,7 @@
+.DS_Store
+Thumbs.db
+salida/
+**/connect/connect.offsets
+**/connect/*.txt
+__pycache__/
+venv/

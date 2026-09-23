@@ -1,0 +1,9 @@
+# Los scripts tienen que llegar con saltos de linea de Unix aunque se clonen en Windows:
+# si Git los convierte a CRLF, bash falla con "$\r: command not found".
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.properties text eol=lf
+*.png binary
+*.jpg binary
+*.mp4 binary
