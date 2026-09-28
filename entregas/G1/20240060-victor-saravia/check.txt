@@ -1,0 +1,15 @@
+✅ Contenedor controller corriendo
+✅ Contenedor kafka1 corriendo
+✅ Contenedor kafka2 corriendo
+✅ Contenedor kafka3 corriendo
+✅ Brokers registrados en el cluster: 3
+✅ Existe tu topic de ventas: ventas-G1
+✅ Particiones del topic: 3
+✅ Copias de cada particion: 3
+✅ min.insync.replicas=2 configurado
+
+Todo en orden.
+✅ Mensajes publicados en ventas-G1: 2000
+✅ Grupos de lectura registrados: 7
+
+Todo en orden.
